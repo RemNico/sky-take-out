@@ -1,23 +1,38 @@
 package com.sky.service.impl;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
+import com.sky.constant.PasswordConstant;
 import com.sky.constant.StatusConstant;
+import com.sky.context.BaseContext;
+import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
+import com.sky.dto.EmployeePageQueryDTO;
 import com.sky.entity.Employee;
 import com.sky.exception.AccountLockedException;
 import com.sky.exception.AccountNotFoundException;
 import com.sky.exception.PasswordErrorException;
 import com.sky.mapper.EmployeeMapper;
+import com.sky.result.PageResult;
 import com.sky.service.EmployeeService;
+import io.jsonwebtoken.Jwts;
+import org.apache.http.HttpRequest;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class EmployeeServiceImpl implements EmployeeService {
 
     @Autowired
     private EmployeeMapper employeeMapper;
+
+
 
     /**
      * 员工登录
@@ -28,6 +43,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     public Employee login(EmployeeLoginDTO employeeLoginDTO) {
         String username = employeeLoginDTO.getUsername();
         String password = employeeLoginDTO.getPassword();
+
+        //密码加密成MD5
+        password=DigestUtils.md5DigestAsHex(password.getBytes());
 
         //1、根据用户名查询数据库中的数据
         Employee employee = employeeMapper.getByUsername(username);
@@ -53,5 +71,68 @@ public class EmployeeServiceImpl implements EmployeeService {
         //3、返回实体对象
         return employee;
     }
+
+    @Override
+    public void save(EmployeeDTO employeeDTO) {
+        //创建数据库存的员工对象
+        Employee employee=new Employee();
+        //复制前端传入的值
+        BeanUtils.copyProperties(employeeDTO,employee);
+        //添加前端没有传入的值
+        employee.setStatus(StatusConstant.ENABLE);
+        employee.setPassword(DigestUtils.md5DigestAsHex(PasswordConstant.DEFAULT_PASSWORD.getBytes()));
+        employee.setCreateTime(LocalDateTime.now());
+        employee.setUpdateTime(LocalDateTime.now());
+        //TODO 后期
+
+        //取出同一条线程中存的值
+
+        employee.setCreateUser(BaseContext.getCurrentId());
+        employee.setUpdateUser(BaseContext.getCurrentId());
+
+        employeeMapper.insert(employee);
+    }
+
+    /**
+     * 员工分页查询登录
+     *
+     * @param
+     * @return
+     */
+    @Override
+    public PageResult pageQuery(EmployeePageQueryDTO employeePageQueryDTO) {
+        PageHelper.startPage(employeePageQueryDTO.getPage(),employeePageQueryDTO.getPageSize());
+        List<Employee> list=employeeMapper.select(employeePageQueryDTO);
+        Page<Employee> p=(Page<Employee>) list;
+        return new PageResult(p.getTotal(),p.getResult());
+    }
+
+    @Override
+    public void status(Integer status, Long id) {
+        Employee employee = Employee.builder()
+                .status(status)
+                .id(id)
+                .updateTime(LocalDateTime.now())
+                .build();
+
+        employeeMapper.update(employee);
+    }
+
+    @Override
+    public Employee select(long id) {
+        Employee e=employeeMapper.selectById(id);
+        e.setPassword("****");
+        return e;
+    }
+
+    @Override
+    public void update(EmployeeDTO employeeDTO) {
+        Employee e=new Employee();
+        BeanUtils.copyProperties(employeeDTO,e);
+        e.setUpdateTime(LocalDateTime.now());
+        e.setUpdateUser(BaseContext.getCurrentId());
+        employeeMapper.update(e);
+    }
+
 
 }
