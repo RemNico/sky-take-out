@@ -11,11 +11,12 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("adminCategoryController")
 @Slf4j
 @RequestMapping("/admin/category")
 @Api(tags = "分类相关接口")
@@ -74,8 +75,10 @@ public class CategoryController {
 
     @GetMapping("/list")
     @ApiOperation(value = "根据类型查询分类数据")
-    public Result<Category> selectBy(Integer type){
+    public Result<List<Category>> selectBy(Integer type){
         List<Category> list= categoryService.selectBy(type);
-        return Result.success();
+        return Result.success(list);
     }
+
+
 }
